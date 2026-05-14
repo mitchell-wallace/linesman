@@ -12,6 +12,11 @@ const draggingDisabled = computed(
   () => store.isFilteredOrSearched || store.syncStatus === 'syncing'
 )
 
+// vuedraggable's emit timing is quirky: it fires `update:model-value`
+// with the reordered list before `@end`, but if we apply the reorder
+// directly on `update:model-value` we race the user's still-active drag.
+// Instead we cache the latest emitted list in `localList` and apply it
+// only on `@end`, when the drag is fully settled.
 const localList = ref<Task[]>([])
 
 async function onChangeEnd(): Promise<void> {
