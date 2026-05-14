@@ -1,82 +1,207 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { LapsFile, Task } from '../../shared/types'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useLapsStore } from './stores/laps'
+import { useIdle } from './composables/useIdle'
+import SearchBar from './components/SearchBar.vue'
+import LapList from './components/LapList.vue'
+import LapEditor from './components/LapEditor.vue'
+import AddLapDialog from './components/AddLapDialog.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
+import Toasts from './components/Toasts.vue'
+import type { AddPosition } from '../../shared/types'
 
-const filePath = ref<string | null>(null)
-const tasks = ref<Task[]>([])
-const version = ref<number>(1)
-const error = ref<string | null>(null)
-const loading = ref(true)
+const store = useLapsStore()
 
-async function refresh(): Promise<void> {
-  try {
-    filePath.value = await window.laps.getFilePath()
-    if (!filePath.value) {
-      tasks.value = []
-      loading.value = false
-      return
-    }
-    const file: LapsFile = await window.laps.load()
-    version.value = file.version
-    tasks.value = file.tasks
-    error.value = null
-  } catch (e) {
-    error.value = (e as Error).message
-  } finally {
-    loading.value = false
+const showAdd = ref(false)
+const addPosition = ref<AddPosition>('tail')
+
+const filePathDisplay = computed(() => store.filePath ?? 'No file open')
+
+const syncLabel = computed(() => {
+  if (store.syncStatus === 'syncing') return 'Syncing…'
+  if (store.syncStatus === 'external') return 'External update applied'
+  return 'Synced'
+})
+
+const syncDotClass = computed(() => {
+  if (store.syncStatus === 'syncing') return 'bg-indigo-400 animate-pulse'
+  if (store.syncStatus === 'external') return 'bg-amber-400'
+  return 'bg-emerald-400'
+})
+
+let unsubExternal: (() => void) | null = null
+
+useIdle({
+  timeoutMs: 30000,
+  onIdle: () => {
+    void store.saveAllDirty()
+  }
+})
+
+function openAdd(pos: AddPosition = 'tail'): void {
+  addPosition.value = pos
+  showAdd.value = true
+}
+
+function confirmAbandon(): void {
+  const target = store.pendingNavigation?.targetId ?? null
+  store.discardDeleted()
+  void store.forceSelect(target)
+}
+
+function cancelAbandon(): void {
+  store.cancelPendingNavigation()
+}
+
+function onWindowKey(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+    const target = e.target as HTMLElement | null
+    const tag = target?.tagName ?? ''
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
+    e.preventDefault()
+    openAdd('tail')
   }
 }
 
-let unsubscribe: (() => void) | null = null
-
 onMounted(async () => {
-  await refresh()
-  unsubscribe = window.laps.onExternalChange((evt) => {
-    version.value = evt.file.version
-    tasks.value = evt.file.tasks
+  await store.initialLoad()
+  unsubExternal = window.laps.onExternalChange((evt) => {
+    store.handleExternalChange(evt.file)
+  })
+  window.addEventListener('keydown', onWindowKey)
+  window.addEventListener('beforeunload', () => {
+    void store.saveAllDirty()
   })
 })
 
 onBeforeUnmount(() => {
-  unsubscribe?.()
+  unsubExternal?.()
+  window.removeEventListener('keydown', onWindowKey)
+  void store.saveAllDirty()
 })
 </script>
 
 <template>
-  <div class="min-h-full p-6 font-sans">
-    <header class="mb-6">
-      <h1 class="text-xl font-semibold">laps-viewer</h1>
-      <p class="text-sm text-neutral-400 break-all">
-        {{ filePath ?? 'no .laps/laps.json found' }}
-      </p>
+  <div class="flex h-full flex-col bg-slate-950 text-slate-100">
+    <header
+      class="flex flex-none items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-900/40 px-4 py-2.5"
+    >
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="flex items-center gap-2">
+          <div class="h-6 w-6 rounded bg-indigo-500/15 ring-1 ring-inset ring-indigo-500/30">
+            <svg viewBox="0 0 24 24" class="h-full w-full p-1 text-indigo-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M5 6h14M5 18h9" />
+            </svg>
+          </div>
+          <span class="text-sm font-semibold tracking-tight">laps-viewer</span>
+        </div>
+        <span class="text-slate-700">·</span>
+        <div
+          class="min-w-0 truncate font-mono text-xs text-slate-500"
+          :title="store.filePath ?? ''"
+        >
+          {{ filePathDisplay }}
+        </div>
+      </div>
+
+      <div class="flex flex-none items-center gap-3 text-xs">
+        <div class="flex items-center gap-1.5" :title="`Sync status: ${syncLabel}`">
+          <span class="h-1.5 w-1.5 rounded-full transition-colors" :class="syncDotClass" />
+          <span class="text-slate-400">{{ syncLabel }}</span>
+        </div>
+        <span class="hidden text-slate-700 sm:inline">·</span>
+        <span class="hidden text-slate-500 sm:inline">
+          <kbd class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">Ctrl/Cmd&nbsp;N</kbd>
+          to add
+        </span>
+      </div>
     </header>
 
-    <div v-if="loading" class="text-neutral-400 text-sm">loading...</div>
-    <div v-else-if="error" class="text-red-400 text-sm">{{ error }}</div>
-    <div v-else-if="!filePath" class="text-neutral-400 text-sm">
-      Run this from a directory that contains a <code>.laps/laps.json</code> file.
+    <div v-if="store.loading" class="flex flex-1 items-center justify-center text-xs text-slate-500">
+      Loading…
     </div>
-    <ul v-else class="space-y-2">
-      <li
-        v-for="t in tasks"
-        :key="t.id"
-        class="rounded border border-neutral-800 p-3 bg-neutral-900"
-      >
-        <div class="flex items-center gap-3">
-          <span
-            class="inline-block w-2 h-2 rounded-full"
-            :class="t.isDone ? 'bg-emerald-500' : 'bg-neutral-500'"
-          />
-          <span class="font-mono text-xs text-neutral-500">{{ t.id }}</span>
-          <span class="font-medium">{{ t.title }}</span>
+    <div
+      v-else-if="store.loadError"
+      class="flex flex-1 items-center justify-center text-sm text-rose-300"
+    >
+      {{ store.loadError }}
+    </div>
+    <div
+      v-else-if="!store.filePath"
+      class="flex flex-1 items-center justify-center px-6 text-center"
+    >
+      <div class="max-w-md space-y-3">
+        <div class="text-lg font-semibold text-slate-200">No laps.json found</div>
+        <p class="text-sm text-slate-400">
+          Launch laps-viewer from a directory that contains a
+          <code class="rounded bg-slate-800 px-1 py-px font-mono text-xs">.laps/laps.json</code>
+          file, or set
+          <code class="rounded bg-slate-800 px-1 py-px font-mono text-xs">LAPS_FILE</code>
+          to an explicit path.
+        </p>
+      </div>
+    </div>
+    <div
+      v-else-if="store.tasks.length === 0"
+      class="flex flex-1 items-center justify-center px-6 text-center"
+    >
+      <div class="max-w-sm space-y-4">
+        <div class="space-y-1">
+          <div class="text-lg font-semibold text-slate-200">No laps yet</div>
+          <p class="text-sm text-slate-400">Add your first task to get started.</p>
         </div>
-        <div v-if="t.description" class="mt-1 text-sm text-neutral-400">
-          {{ t.description }}
+        <button
+          type="button"
+          class="rounded-md bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600"
+          @click="openAdd('tail')"
+        >
+          Add your first task
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="flex min-h-0 flex-1">
+      <aside class="flex w-[360px] flex-none flex-col border-r border-slate-800/80 bg-slate-900/30">
+        <div class="flex-none border-b border-slate-800/80 px-3 py-3">
+          <SearchBar />
         </div>
-      </li>
-      <li v-if="tasks.length === 0" class="text-neutral-500 text-sm">
-        no tasks yet
-      </li>
-    </ul>
+        <LapList />
+        <div class="flex-none border-t border-slate-800/80 p-2">
+          <button
+            type="button"
+            class="flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-600"
+            @click="openAdd('tail')"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Add lap
+          </button>
+        </div>
+      </aside>
+
+      <main class="flex min-w-0 flex-1 flex-col">
+        <LapEditor />
+      </main>
+    </div>
+
+    <AddLapDialog
+      v-if="showAdd"
+      :default-position="addPosition"
+      @close="showAdd = false"
+    />
+
+    <ConfirmModal
+      v-if="store.pendingNavigation"
+      title="Abandon this deleted task?"
+      message="Your edits will be lost."
+      confirm-label="Abandon"
+      cancel-label="Stay here"
+      destructive
+      @confirm="confirmAbandon"
+      @cancel="cancelAbandon"
+    />
+
+    <Toasts />
   </div>
 </template>
