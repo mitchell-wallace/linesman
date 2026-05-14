@@ -34,7 +34,7 @@ async function onChangeEnd(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
+  <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1.5" data-testid="lap-list">
     <draggable
       v-if="store.filteredTasks.length > 0"
       :model-value="store.filteredTasks"

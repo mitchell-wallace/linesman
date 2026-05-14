@@ -88,6 +88,7 @@ onBeforeUnmount(() => {
           v-model="title"
           type="text"
           placeholder="What needs doing?"
+          data-testid="add-title"
           class="w-full rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500"
         />
       </div>
@@ -98,6 +99,7 @@ onBeforeUnmount(() => {
           v-model="description"
           rows="3"
           placeholder="Optional"
+          data-testid="add-description"
           class="w-full resize-none rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500"
         ></textarea>
       </div>
@@ -109,6 +111,7 @@ onBeforeUnmount(() => {
             v-model="assignee"
             type="text"
             placeholder="Optional"
+            data-testid="add-assignee"
             class="w-full rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500"
           />
         </div>
@@ -116,6 +119,7 @@ onBeforeUnmount(() => {
           <label class="text-xs font-medium text-slate-400">Position</label>
           <select
             v-model="position"
+            data-testid="add-position"
             class="w-full rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-indigo-500"
           >
             <option v-for="p in positions" :key="p.id" :value="p.id">{{ p.label }}</option>
@@ -136,6 +140,7 @@ onBeforeUnmount(() => {
         <button
           type="submit"
           :disabled="submitting"
+          data-testid="add-submit"
           class="rounded-md bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-60"
         >
           {{ submitting ? 'Adding…' : 'Add lap' }}

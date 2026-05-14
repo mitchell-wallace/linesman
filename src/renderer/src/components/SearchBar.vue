@@ -29,6 +29,7 @@ const chips: { id: FilterMode; label: string }[] = [
         v-model="store.searchQuery"
         type="text"
         placeholder="Search laps..."
+        data-testid="search"
         class="w-full rounded-md border border-slate-800 bg-slate-900/60 py-1.5 pl-8 pr-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-indigo-500 focus:bg-slate-900"
       />
     </div>
@@ -37,6 +38,7 @@ const chips: { id: FilterMode; label: string }[] = [
         v-for="c in chips"
         :key="c.id"
         type="button"
+        :data-testid="`filter-${c.id}`"
         class="rounded-full px-2.5 py-0.5 text-xs font-medium transition"
         :class="
           store.filterMode === c.id

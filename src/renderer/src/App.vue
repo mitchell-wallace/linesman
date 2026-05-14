@@ -98,6 +98,7 @@ onBeforeUnmount(() => {
         <span class="text-slate-700">·</span>
         <div
           class="min-w-0 truncate font-mono text-xs text-slate-500"
+          data-testid="file-path"
           :title="store.filePath ?? ''"
         >
           {{ filePathDisplay }}
@@ -105,7 +106,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="flex flex-none items-center gap-3 text-xs">
-        <div class="flex items-center gap-1.5" :title="`Sync status: ${syncLabel}`">
+        <div class="flex items-center gap-1.5" data-testid="sync-status" :title="`Sync status: ${syncLabel}`">
           <span class="h-1.5 w-1.5 rounded-full transition-colors" :class="syncDotClass" />
           <span class="text-slate-400">{{ syncLabel }}</span>
         </div>
@@ -128,6 +129,7 @@ onBeforeUnmount(() => {
     </div>
     <div
       v-else-if="!store.filePath"
+      data-testid="no-file"
       class="flex flex-1 items-center justify-center px-6 text-center"
     >
       <div class="max-w-md space-y-3">
@@ -152,6 +154,7 @@ onBeforeUnmount(() => {
         </div>
         <button
           type="button"
+          data-testid="add-lap-button"
           class="rounded-md bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600"
           @click="openAdd('tail')"
         >
@@ -169,6 +172,7 @@ onBeforeUnmount(() => {
         <div class="flex-none border-t border-slate-800/80 p-2">
           <button
             type="button"
+            data-testid="add-lap-button"
             class="flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-600"
             @click="openAdd('tail')"
           >

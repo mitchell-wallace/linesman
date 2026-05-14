@@ -43,12 +43,14 @@ onBeforeUnmount(() => {
       class="w-full max-w-sm rounded-lg border border-slate-800 bg-slate-900 p-5 shadow-2xl"
       role="dialog"
       aria-modal="true"
+      data-testid="confirm-modal"
     >
       <h2 class="text-sm font-semibold text-slate-100">{{ title }}</h2>
       <p class="mt-1.5 text-xs text-slate-400">{{ message }}</p>
       <div class="mt-5 flex justify-end gap-2">
         <button
           type="button"
+          data-testid="confirm-no"
           class="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
           @click="emit('cancel')"
         >
@@ -56,6 +58,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           type="button"
+          data-testid="confirm-yes"
           class="rounded-md px-3 py-1.5 text-xs font-medium"
           :class="
             props.destructive

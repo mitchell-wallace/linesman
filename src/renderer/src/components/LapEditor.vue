@@ -100,7 +100,7 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div v-if="deletedExt" class="border-b border-rose-500/30 bg-rose-500/10 px-6 py-3">
+    <div v-if="deletedExt" data-testid="deleted-banner" class="border-b border-rose-500/30 bg-rose-500/10 px-6 py-3">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div class="text-sm">
           <div class="font-medium text-rose-200">This task was deleted externally.</div>
@@ -111,6 +111,7 @@ async function confirmDelete(): Promise<void> {
         <div class="flex gap-2">
           <button
             type="button"
+            data-testid="recover-button"
             class="rounded-md bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-100 ring-1 ring-rose-400/40 hover:bg-rose-500/30"
             @click="recover"
           >
@@ -118,6 +119,7 @@ async function confirmDelete(): Promise<void> {
           </button>
           <button
             type="button"
+            data-testid="discard-button"
             class="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
             @click="discardDeleted"
           >
@@ -129,6 +131,7 @@ async function confirmDelete(): Promise<void> {
 
     <div
       v-else-if="store.selectedIsExternallyModified"
+      data-testid="ext-banner"
       class="border-b border-amber-500/30 bg-amber-500/10 px-6 py-3"
     >
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -141,6 +144,7 @@ async function confirmDelete(): Promise<void> {
         <div class="flex gap-2">
           <button
             type="button"
+            data-testid="keep-edits-button"
             class="rounded-md bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-100 ring-1 ring-amber-400/40 hover:bg-amber-500/30"
             @click="keepEdits"
           >
@@ -148,6 +152,7 @@ async function confirmDelete(): Promise<void> {
           </button>
           <button
             type="button"
+            data-testid="discard-edits-button"
             class="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
             @click="discardEdits"
           >
@@ -163,6 +168,7 @@ async function confirmDelete(): Promise<void> {
           :value="selected.title"
           type="text"
           placeholder="Untitled lap"
+          data-testid="editor-title"
           class="w-full border-0 bg-transparent text-2xl font-semibold leading-tight text-slate-50 placeholder:text-slate-600 outline-none focus:ring-0 px-0"
           @input="onTitle"
         />
@@ -172,6 +178,7 @@ async function confirmDelete(): Promise<void> {
             <input
               type="checkbox"
               :checked="selected.isDone"
+              data-testid="editor-done"
               class="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
               @change="onToggleDone"
             />
@@ -184,6 +191,7 @@ async function confirmDelete(): Promise<void> {
               :value="selected.assignee ?? ''"
               type="text"
               placeholder="unassigned"
+              data-testid="editor-assignee"
               class="w-40 rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500"
               @input="onAssignee"
             />
@@ -195,6 +203,7 @@ async function confirmDelete(): Promise<void> {
           :value="selected.description"
           placeholder="Add a description…"
           spellcheck="false"
+          data-testid="editor-description"
           class="min-h-[200px] w-full resize-none rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-base leading-relaxed text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500"
           @input="onDescription"
         ></textarea>
@@ -222,6 +231,7 @@ async function confirmDelete(): Promise<void> {
           </div>
           <button
             type="button"
+            data-testid="editor-delete"
             class="rounded-md px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
             @click="requestDelete"
           >

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef, toRaw } from 'vue'
 import type {
   AddPosition,
   LapsFile,
@@ -219,7 +219,8 @@ export const useLapsStore = defineStore('laps', () => {
       externallyModified.delete(id)
       return true
     }
-    const result = await runSave(() => window.laps.applyUpdate(id, patch), "Couldn't save")
+    const payload: TaskPatch = { ...toRaw(patch) }
+    const result = await runSave(() => window.laps.applyUpdate(id, payload), "Couldn't save")
     if (!result) return false
     delete dirtyEdits[id]
     delete dirtyBaseline[id]
@@ -294,8 +295,9 @@ export const useLapsStore = defineStore('laps', () => {
     refId?: string
   ): Promise<Task | null> {
     const before = new Set(tasks.value.map((t) => t.id))
+    const payload: NewLapInput = { ...toRaw(input) }
     const result = await runSave(
-      () => window.laps.applyAdd(position, input, refId),
+      () => window.laps.applyAdd(position, payload, refId),
       "Couldn't add"
     )
     if (!result) return null
@@ -318,7 +320,7 @@ export const useLapsStore = defineStore('laps', () => {
   async function recoverDeleted(): Promise<void> {
     const lap = deletedExternally.value
     if (!lap) return
-    const merged: Task = { ...lap }
+    const merged: Task = { ...toRaw(lap) }
     const patch = dirtyEdits[lap.id]
     if (patch) {
       if (patch.title !== undefined) merged.title = patch.title

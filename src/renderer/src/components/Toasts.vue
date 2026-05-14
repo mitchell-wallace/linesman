@@ -11,11 +11,12 @@ function bgFor(kind: 'info' | 'success' | 'error'): string {
 </script>
 
 <template>
-  <div class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-72 flex-col gap-2">
+  <div data-testid="toasts" class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-72 flex-col gap-2">
     <transition-group name="toast" tag="div" class="flex flex-col gap-2">
       <div
         v-for="t in store.toasts"
         :key="t.id"
+        data-testid="toast"
         class="pointer-events-auto rounded-md border px-3 py-2 text-xs shadow-lg backdrop-blur"
         :class="bgFor(t.kind)"
       >
