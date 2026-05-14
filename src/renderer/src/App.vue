@@ -30,6 +30,7 @@ const syncDotClass = computed(() => {
 })
 
 let unsubExternal: (() => void) | null = null
+let unsubFlush: (() => void) | null = null
 
 useIdle({
   timeoutMs: 30000,
@@ -44,13 +45,13 @@ function openAdd(pos: AddPosition = 'tail'): void {
 }
 
 function confirmAbandon(): void {
-  const target = store.pendingNavigation?.targetId ?? null
+  const target = store.pendingAbandon?.targetId ?? null
   store.discardDeleted()
   void store.forceSelect(target)
 }
 
 function cancelAbandon(): void {
-  store.cancelPendingNavigation()
+  store.cancelPendingAbandon()
 }
 
 function onWindowKey(e: KeyboardEvent): void {
@@ -68,16 +69,24 @@ onMounted(async () => {
   unsubExternal = window.laps.onExternalChange((evt) => {
     store.handleExternalChange(evt.file)
   })
-  window.addEventListener('keydown', onWindowKey)
-  window.addEventListener('beforeunload', () => {
-    void store.saveAllDirty()
+  // The main process intercepts close/before-quit and asks us to flush
+  // pending edits via this channel. Ack with notifyQuitReady() so the
+  // app can finish quitting. Main enforces a 3s safety timeout, so a
+  // stuck save won't trap the user.
+  unsubFlush = window.laps.onFlushAndQuit(async () => {
+    try {
+      await store.saveAllDirty()
+    } finally {
+      window.laps.notifyQuitReady()
+    }
   })
+  window.addEventListener('keydown', onWindowKey)
 })
 
 onBeforeUnmount(() => {
   unsubExternal?.()
+  unsubFlush?.()
   window.removeEventListener('keydown', onWindowKey)
-  void store.saveAllDirty()
 })
 </script>
 
@@ -196,7 +205,7 @@ onBeforeUnmount(() => {
     />
 
     <ConfirmModal
-      v-if="store.pendingNavigation"
+      v-if="store.pendingAbandon"
       title="Abandon this deleted task?"
       message="Your edits will be lost."
       confirm-label="Abandon"

@@ -10,8 +10,13 @@ export interface Watcher {
   start: () => void
   stop: () => void
   // Call this after a programmatic save so the next poll doesn't fire
-  // a spurious external-change event for our own write.
+  // a spurious external-change event for our own write. If mtime/size
+  // are omitted, the next poll will fall back to a full content read
+  // and hash comparison (used when stat cannot be trusted, e.g. a
+  // concurrent writer raced our rename).
   noteOwnWrite: (hash: string, mtimeMs?: number, size?: number) => void
+  // For tests / explicit reconcile paths.
+  pollNow: () => Promise<void>
 }
 
 export interface WatcherOptions {
@@ -26,12 +31,12 @@ export function createWatcher(
   const interval = opts.intervalMs ?? 15000
   let timer: NodeJS.Timeout | null = null
   let running = false
-  let lastMtime = -1
-  let lastSize = -1
+  let lastMtime: number | null = null
+  let lastSize: number | null = null
   let lastHash = ''
   let initialized = false
 
-  const poll = async () => {
+  const poll = async (): Promise<void> => {
     if (running) return
     running = true
     try {
@@ -42,8 +47,8 @@ export function createWatcher(
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           if (initialized && lastHash !== '') {
             lastHash = ''
-            lastMtime = -1
-            lastSize = -1
+            lastMtime = null
+            lastSize = null
             events.onChange('')
           } else {
             initialized = true
@@ -54,7 +59,18 @@ export function createWatcher(
       }
       const mtime = stat.mtimeMs
       const size = stat.size
-      if (initialized && mtime === lastMtime && size === lastSize) return
+      // Short-circuit only when we have a trusted (mtime, size) baseline.
+      // If either is null, the previous noteOwnWrite couldn't trust stat
+      // (e.g. concurrent writer race) — force a content read this poll.
+      if (
+        initialized &&
+        lastMtime !== null &&
+        lastSize !== null &&
+        mtime === lastMtime &&
+        size === lastSize
+      ) {
+        return
+      }
 
       const content = await fs.readFile(filePath, 'utf8')
       const h = hashContent(content)
@@ -93,7 +109,10 @@ export function createWatcher(
       lastHash = hash
       initialized = true
       if (mtimeMs !== undefined) lastMtime = mtimeMs
+      else lastMtime = null
       if (size !== undefined) lastSize = size
-    }
+      else lastSize = null
+    },
+    pollNow: poll
   }
 }

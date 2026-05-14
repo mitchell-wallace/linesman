@@ -1,5 +1,4 @@
 import { ipcMain, type BrowserWindow } from 'electron'
-import { promises as fs } from 'node:fs'
 import {
   applyAdd,
   applyDelete,
@@ -9,6 +8,7 @@ import {
   loadFile,
   saveFile
 } from './fileStore.js'
+import { reconcileAfterWriteWith } from './reconcile.js'
 import { createWatcher, type Watcher } from './watcher.js'
 import type {
   AddPosition,
@@ -24,18 +24,21 @@ export interface IpcContext {
 }
 
 let watcher: Watcher | null = null
+let activeWindow: BrowserWindow | null = null
 
-async function noteSavedHashFromDisk(
+async function reconcileAfterWrite(
   filePath: string,
-  hash: string
+  ourHash: string
 ): Promise<void> {
   if (!watcher) return
-  try {
-    const stat = await fs.stat(filePath)
-    watcher.noteOwnWrite(hash, stat.mtimeMs, stat.size)
-  } catch {
-    watcher.noteOwnWrite(hash)
-  }
+  await reconcileAfterWriteWith(filePath, ourHash, watcher, (parsed) => {
+    if (activeWindow && !activeWindow.isDestroyed()) {
+      activeWindow.webContents.send('laps:external-change', {
+        path: filePath,
+        file: parsed
+      })
+    }
+  })
 }
 
 function requirePath(ctx: IpcContext): string {
@@ -45,6 +48,8 @@ function requirePath(ctx: IpcContext): string {
 }
 
 export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
+  activeWindow = win
+
   ipcMain.handle('laps:get-file-path', () => ctx.getFilePath())
 
   ipcMain.handle('laps:load', async (): Promise<LapsFile> => {
@@ -57,7 +62,7 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
     async (_e, id: string, patch: TaskPatch): Promise<LapsFile> => {
       const p = requirePath(ctx)
       const { file, hash } = await applyUpdate(p, id, patch)
-      await noteSavedHashFromDisk(p, hash)
+      await reconcileAfterWrite(p, hash)
       return file
     }
   )
@@ -67,7 +72,7 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
     async (_e, orderedIds: string[]): Promise<LapsFile> => {
       const p = requirePath(ctx)
       const { file, hash } = await applyReorder(p, orderedIds)
-      await noteSavedHashFromDisk(p, hash)
+      await reconcileAfterWrite(p, hash)
       return file
     }
   )
@@ -82,7 +87,7 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
     ): Promise<LapsFile> => {
       const p = requirePath(ctx)
       const { file, hash } = await applyAdd(p, position, lap, refId)
-      await noteSavedHashFromDisk(p, hash)
+      await reconcileAfterWrite(p, hash)
       return file
     }
   )
@@ -92,7 +97,7 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
     async (_e, id: string): Promise<LapsFile> => {
       const p = requirePath(ctx)
       const { file, hash } = await applyDelete(p, id)
-      await noteSavedHashFromDisk(p, hash)
+      await reconcileAfterWrite(p, hash)
       return file
     }
   )
@@ -102,13 +107,22 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
     async (_e, lap: Task): Promise<LapsFile> => {
       const p = requirePath(ctx)
       const { file, hash } = await applyRecover(p, lap)
-      await noteSavedHashFromDisk(p, hash)
+      await reconcileAfterWrite(p, hash)
       return file
     }
   )
 
+  ipcMain.on('laps:quit-ready', () => {
+    quitReadyHandler?.()
+  })
+
   const initialPath = ctx.getFilePath()
   if (initialPath) startWatcher(initialPath, win)
+}
+
+let quitReadyHandler: (() => void) | null = null
+export function setQuitReadyHandler(h: (() => void) | null): void {
+  quitReadyHandler = h
 }
 
 export function startWatcher(filePath: string, win: BrowserWindow): void {
@@ -145,6 +159,6 @@ export async function _saveAndNote(
   file: LapsFile
 ): Promise<LapsFile> {
   const hash = await saveFile(filePath, file)
-  await noteSavedHashFromDisk(filePath, hash)
+  await reconcileAfterWrite(filePath, hash)
   return file
 }

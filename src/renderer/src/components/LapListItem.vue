@@ -16,10 +16,16 @@ const isExternal = computed(() => store.externallyModified.has(props.task.id))
 
 const positionInfo = computed(() => {
   const idx = store.tasks.findIndex((t) => t.id === props.task.id)
+  // When a search/filter is active, the visible list is a subset of
+  // store.tasks; a single move-up/down step in the underlying array can
+  // produce a no-op or a confusing jump in the rendered list. Disable
+  // the buttons in that case (matching how dragging is disabled in
+  // LapList.vue).
+  const reorderDisabled = store.isFilteredOrSearched
   return {
     idx,
-    canUp: idx > 0,
-    canDown: idx >= 0 && idx < store.tasks.length - 1
+    canUp: !reorderDisabled && idx > 0,
+    canDown: !reorderDisabled && idx >= 0 && idx < store.tasks.length - 1
   }
 })
 

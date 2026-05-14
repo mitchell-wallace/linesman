@@ -45,6 +45,29 @@ function patchHasChanges(baseline: Task, patch: TaskPatch): boolean {
   return false
 }
 
+function fileSignature(f: LapsFile | null): string {
+  if (!f) return ''
+  // Stable ordering: version + sequence of normalised tasks. Used to skip
+  // redundant external-merge work when disk matches what we just saved.
+  return JSON.stringify({
+    v: f.version,
+    t: f.tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      assignee: t.assignee ?? '',
+      isDone: t.isDone,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+      completedAt: t.completedAt ?? null
+    }))
+  })
+}
+
+function filesEqual(a: LapsFile | null, b: LapsFile | null): boolean {
+  return fileSignature(a) === fileSignature(b)
+}
+
 export const useLapsStore = defineStore('laps', () => {
   const filePath = ref<string | null>(null)
   const file = shallowRef<LapsFile | null>(null)
@@ -59,12 +82,16 @@ export const useLapsStore = defineStore('laps', () => {
   const dirtyBaseline = reactive<Record<string, Task>>({})
   const externallyModified = reactive<Set<string>>(new Set<string>())
   const deletedExternally = ref<Task | null>(null)
-  const pendingNavigation = ref<{ targetId: string | null } | null>(null)
+  const pendingAbandon = ref<{ targetId: string | null } | null>(null)
 
   const toasts = ref<ToastItem[]>([])
 
   const saving = ref(false)
   let queuedExternal: PendingExternal | null = null
+  // Serialise saves through a single chain so two fast clicks can't fire
+  // overlapping IPC calls. Each save awaits the previous one before sending,
+  // which keeps the queuedExternal handling deterministic.
+  let saveChain: Promise<unknown> = Promise.resolve()
 
   const tasks = computed<Task[]>(() => file.value?.tasks ?? [])
 
@@ -184,25 +211,45 @@ export const useLapsStore = defineStore('laps', () => {
   }
 
   async function runSave(fn: () => Promise<LapsFile>, errMsg: string): Promise<LapsFile | null> {
-    saving.value = true
-    syncStatus.value = 'syncing'
-    try {
-      const result = await fn()
-      file.value = result
-      if (queuedExternal) {
-        const pending = queuedExternal
-        queuedExternal = null
-        applyExternalFile(pending.file, false)
+    // Chain through saveChain so concurrent callers serialise. We don't
+    // let one rejection break the chain — catch on the chain head, but
+    // surface the error to this caller's promise.
+    const next = saveChain.then(async (): Promise<LapsFile | null> => {
+      saving.value = true
+      syncStatus.value = 'syncing'
+      try {
+        const result = await fn()
+        file.value = result
+        if (queuedExternal) {
+          queuedExternal = null
+          // The captured snapshot is stale by the time we get here (we just
+          // wrote in between). Re-fetch disk truth and only merge if it
+          // actually differs from what we just wrote. This guarantees the
+          // renderer reflects current reality regardless of how stale the
+          // queued event was.
+          try {
+            const fresh = await window.laps.load()
+            if (!filesEqual(fresh, file.value)) {
+              applyExternalFile(fresh, false)
+            }
+          } catch {
+            // Swallow — the watcher's next poll will catch any drift.
+          }
+        }
+        syncStatus.value = 'idle'
+        return result
+      } catch (e) {
+        pushToast('error', `${errMsg}: ${(e as Error).message}`)
+        syncStatus.value = 'idle'
+        return null
+      } finally {
+        saving.value = false
       }
-      syncStatus.value = 'idle'
-      return result
-    } catch (e) {
-      pushToast('error', `${errMsg}: ${(e as Error).message}`)
-      syncStatus.value = 'idle'
-      return null
-    } finally {
-      saving.value = false
-    }
+    })
+    saveChain = next.catch(() => {
+      // Keep the chain alive even on rejection.
+    })
+    return next
   }
 
   async function saveDirty(id: string): Promise<boolean> {
@@ -238,7 +285,7 @@ export const useLapsStore = defineStore('laps', () => {
   async function select(id: string | null): Promise<void> {
     if (selectedId.value === id) return
     if (deletedExternally.value) {
-      pendingNavigation.value = { targetId: id }
+      pendingAbandon.value = { targetId: id }
       return
     }
     const prev = selectedId.value
@@ -255,12 +302,12 @@ export const useLapsStore = defineStore('laps', () => {
       delete dirtyBaseline[prev]
     }
     deletedExternally.value = null
-    pendingNavigation.value = null
+    pendingAbandon.value = null
     selectedId.value = id
   }
 
-  function cancelPendingNavigation(): void {
-    pendingNavigation.value = null
+  function cancelPendingAbandon(): void {
+    pendingAbandon.value = null
   }
 
   async function toggleDone(id: string, value: boolean): Promise<void> {
@@ -447,7 +494,7 @@ export const useLapsStore = defineStore('laps', () => {
     dirtyEdits,
     externallyModified,
     deletedExternally,
-    pendingNavigation,
+    pendingAbandon,
     toasts,
     effectiveTaskFor,
     pushToast,
@@ -458,7 +505,7 @@ export const useLapsStore = defineStore('laps', () => {
     saveAllDirty,
     select,
     forceSelect,
-    cancelPendingNavigation,
+    cancelPendingAbandon,
     toggleDone,
     applyReorder,
     addLap,

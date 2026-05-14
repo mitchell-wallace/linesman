@@ -25,6 +25,14 @@ const api = {
     const handler = (_: unknown, payload: ExternalChangeEvent) => cb(payload)
     ipcRenderer.on('laps:external-change', handler)
     return () => ipcRenderer.removeListener('laps:external-change', handler)
+  },
+  onFlushAndQuit: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('laps:flush-and-quit', handler)
+    return () => ipcRenderer.removeListener('laps:flush-and-quit', handler)
+  },
+  notifyQuitReady: (): void => {
+    ipcRenderer.send('laps:quit-ready')
   }
 }
 
