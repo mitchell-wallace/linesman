@@ -37,9 +37,11 @@ if [ -z "${VERSION}" ]; then
     VERSION="${TAG#v}"
 fi
 
+BIN_DIR="$HOME/.local/bin"
+LIB_DIR="$HOME/.local/lib/${TOOL_NAME}"
+
 if [ "$PLATFORM" = "linux" ]; then
     EXT="AppImage"
-    INSTALL_DIR="$HOME/.local/bin"
     ASSET="${TOOL_NAME}_${VERSION}_${PLATFORM}_${EB_ARCH}.${EXT}"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"
 
@@ -47,11 +49,22 @@ if [ "$PLATFORM" = "linux" ]; then
     echo "Downloading ${ASSET}..."
     curl -fsSL "$DOWNLOAD_URL" -o "/tmp/${ASSET}"
 
-    mkdir -p "$INSTALL_DIR"
-    mv "/tmp/${ASSET}" "${INSTALL_DIR}/${TOOL_NAME}"
-    chmod +x "${INSTALL_DIR}/${TOOL_NAME}"
+    rm -f "$LIB_DIR/${TOOL_NAME}.AppImage"
+    mkdir -p "$LIB_DIR"
+    mv "/tmp/${ASSET}" "${LIB_DIR}/${TOOL_NAME}.AppImage"
+    chmod +x "${LIB_DIR}/${TOOL_NAME}.AppImage"
 
-    echo "Installed ${TOOL_NAME} to ${INSTALL_DIR}/${TOOL_NAME}"
+    cat > "${BIN_DIR}/${TOOL_NAME}" << 'WRAPPER'
+#!/usr/bin/env bash
+export APPIMAGELAUNCHER_DISABLE=1
+exec "$HOME/.local/lib/linesman/linesman.AppImage" "$@"
+WRAPPER
+    chmod +x "${BIN_DIR}/${TOOL_NAME}"
+
+    ln -sf "${TOOL_NAME}" "${BIN_DIR}/lmn"
+
+    echo "Installed ${TOOL_NAME} → ${LIB_DIR}/${TOOL_NAME}.AppImage"
+    echo "Alias: lmn → ${BIN_DIR}/lmn"
 elif [ "$PLATFORM" = "mac" ]; then
     EXT="zip"
     ASSET="${TOOL_NAME}_${VERSION}_${PLATFORM}_${EB_ARCH}.${EXT}"
@@ -77,17 +90,17 @@ elif [ "$PLATFORM" = "mac" ]; then
         echo "Extracted to /Applications/"
     fi
 
-    CLI_WRAPPER="/usr/local/bin/${TOOL_NAME}"
     APP_EXEC="/Applications/${TOOL_NAME}.app/Contents/MacOS/${TOOL_NAME}"
     if [ -f "$APP_EXEC" ]; then
-        sudo ln -sf "$APP_EXEC" "$CLI_WRAPPER" 2>/dev/null || {
-            LOCAL_BIN="$HOME/.local/bin"
-            mkdir -p "$LOCAL_BIN"
-            ln -sf "$APP_EXEC" "${LOCAL_BIN}/${TOOL_NAME}"
-            CLI_WRAPPER="${LOCAL_BIN}/${TOOL_NAME}"
-            echo "Created CLI wrapper at ${CLI_WRAPPER} (sudo not available)"
+        mkdir -p "$BIN_DIR"
+        ln -sf "$APP_EXEC" "${BIN_DIR}/${TOOL_NAME}" 2>/dev/null || {
+            sudo ln -sf "$APP_EXEC" "/usr/local/bin/${TOOL_NAME}"
+            echo "CLI wrapper: /usr/local/bin/${TOOL_NAME}"
         }
-        echo "CLI wrapper: ${CLI_WRAPPER} → ${APP_EXEC}"
+        ln -sf "${TOOL_NAME}" "${BIN_DIR}/lmn" 2>/dev/null || {
+            sudo ln -sf "$APP_EXEC" "/usr/local/bin/lmn"
+        }
+        echo "Alias: lmn"
     fi
 
     rm -rf "$TMPDIR_EXTRACT" "/tmp/${ASSET}"
@@ -125,3 +138,4 @@ fi
 echo ""
 echo "Installation complete. Restart your shell or run 'source ~/.bashrc' (or equivalent) to update PATH."
 echo "Usage: cd your-project && ${TOOL_NAME}"
+echo "       cd your-project && lmn"

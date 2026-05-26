@@ -44,6 +44,8 @@ The app is unsigned. On first launch:
 ```sh
 cd /path/to/your/project
 linesman
+# or
+lmn
 ```
 
 Linesman discovers the `.laps/laps.json` file by walking up from the current directory. You can also set `LAPS_FILE` explicitly:

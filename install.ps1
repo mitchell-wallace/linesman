@@ -48,6 +48,10 @@ if (-not $ExePath) {
 
 if ($ExePath) {
     Write-Host "Installed to $($ExePath.FullName)"
+
+    $LmnPath = Join-Path $InstallDir "lmn.cmd"
+    "@echo off`n`"%~dp0$($ExePath.Name)%`" %*" | Set-Content -Path $LmnPath
+    Write-Host "Alias: lmn → $LmnPath"
 } else {
     Write-Host "Extracted to $InstallDir"
 }
@@ -67,3 +71,4 @@ Write-Host "Note: On first launch, Windows SmartScreen may show a warning (unsig
 Write-Host 'Click "More info" -> "Run anyway" to proceed.'
 Write-Host ""
 Write-Host "Usage: cd your-project; $ToolName"
+Write-Host "       cd your-project; lmn"
