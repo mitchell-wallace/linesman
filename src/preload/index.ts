@@ -10,6 +10,7 @@ import type {
 
 const api = {
   getFilePath: (): Promise<string | null> => ipcRenderer.invoke('laps:get-file-path'),
+  getCwd: (): Promise<string> => ipcRenderer.invoke('linesman:get-cwd'),
   load: (): Promise<LapsFile> => ipcRenderer.invoke('laps:load'),
   applyUpdate: (id: string, patch: TaskPatch): Promise<LapsFile> =>
     ipcRenderer.invoke('laps:apply-update', id, patch),

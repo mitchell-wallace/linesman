@@ -34,15 +34,15 @@ const file = process.env.LAPS_FILE || discoverLapsFile(process.cwd())
 
 if (!file) {
   process.stderr.write(
-    'laps-viewer: no .laps/laps.json found in this directory or any parent.\n' +
+    'linesman: no .laps/laps.json found in this directory or any parent.\n' +
       'Run `laps init` (from the laps CLI) or cd into a repo that has one.\n'
   )
   process.exit(1)
 }
 
-process.stdout.write(`laps-viewer: using ${file}\n`)
+process.stdout.write(`linesman: using ${file}\n`)
 
-const env = { ...process.env, LAPS_FILE: file }
+const env = { ...process.env, LAPS_FILE: file, LINESMAN_CWD: process.cwd() }
 
 if (dev) {
   const bin = path.join(projectRoot, 'node_modules', '.bin', 'electron-vite')
@@ -54,7 +54,7 @@ if (dev) {
     electronPath = require('electron')
   } catch (err) {
     process.stderr.write(
-      `laps-viewer: failed to resolve electron binary. Did you run \`npm install\` in ${projectRoot}?\n`
+      `linesman: failed to resolve electron binary. Did you run \`npm install\` in ${projectRoot}?\n`
     )
     process.stderr.write(String(err) + '\n')
     process.exit(1)
@@ -62,7 +62,7 @@ if (dev) {
   const mainEntry = path.join(projectRoot, 'out', 'main', 'index.js')
   if (!existsSync(mainEntry)) {
     process.stderr.write(
-      `laps-viewer: build output missing at ${mainEntry}. Run \`npm run build\` first or pass --dev.\n`
+      `linesman: build output missing at ${mainEntry}. Run \`npm run build\` first or pass --dev.\n`
     )
     process.exit(1)
   }

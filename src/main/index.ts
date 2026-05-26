@@ -46,10 +46,14 @@ function requestFlushFromRenderer(win: BrowserWindow): Promise<void> {
 }
 
 function createWindow(): void {
+  const cwd = process.env.LINESMAN_CWD || process.cwd()
+  const folderName = path.basename(cwd)
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
+    title: `linesman — ${folderName}`,
     titleBarStyle: 'default',
     backgroundColor: '#111111',
     autoHideMenuBar: true,
@@ -106,9 +110,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   currentFilePath = resolveInitialFilePath()
   if (currentFilePath) {
-    console.log(`[laps-viewer] using file: ${currentFilePath}`)
+    console.log(`[linesman] using file: ${currentFilePath}`)
   } else {
-    console.log('[laps-viewer] no .laps/laps.json found; launching empty state')
+    console.log('[linesman] no .laps/laps.json found; launching empty state')
   }
   createWindow()
 

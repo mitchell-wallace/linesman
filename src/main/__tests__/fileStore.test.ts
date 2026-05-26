@@ -25,7 +25,7 @@ const fixtureExpected = path.join(here, 'fixtures', 'expected.json')
 let workdir: string
 
 beforeEach(async () => {
-  workdir = await fs.mkdtemp(path.join(tmpdir(), 'laps-viewer-test-'))
+  workdir = await fs.mkdtemp(path.join(tmpdir(), 'linesman-test-'))
 })
 
 afterEach(async () => {

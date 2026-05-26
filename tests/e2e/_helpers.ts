@@ -16,7 +16,7 @@ export interface TempLapsDir {
 }
 
 export function makeTempLapsDir(initialFile?: LapsFile): TempLapsDir {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'laps-viewer-e2e-'))
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'linesman-e2e-'))
   const lapsDir = path.join(dir, '.laps')
   fs.mkdirSync(lapsDir, { recursive: true })
   const lapsFile = path.join(lapsDir, 'laps.json')

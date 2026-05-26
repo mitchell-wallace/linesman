@@ -5,7 +5,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { makeTask, makeTempLapsDir, projectRoot, seedFile, sleep } from './_helpers'
 
-const cliPath = path.join(projectRoot, 'bin', 'laps-viewer.js')
+const cliPath = path.join(projectRoot, 'bin', 'linesman.js')
 
 interface ProcOutput {
   stdout: string
@@ -97,7 +97,7 @@ test('CLI launches Electron with the discovered .laps/laps.json from a sub-subdi
     const result = await spawnCli({ cwd: sub, killAfterMs: 5000, timeoutMs: 25000 })
     expect(result.spawned).toBe(true)
     expect(result.stdout).toContain(tmp.lapsFile)
-    expect(result.stdout).toMatch(/laps-viewer: using/)
+    expect(result.stdout).toMatch(/linesman: using/)
     expect(typeof result.pid).toBe('number')
   } finally {
     tmp.cleanup()

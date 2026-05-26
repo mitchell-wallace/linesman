@@ -52,6 +52,8 @@ export function registerIpc(ctx: IpcContext, win: BrowserWindow): void {
 
   ipcMain.handle('laps:get-file-path', () => ctx.getFilePath())
 
+  ipcMain.handle('linesman:get-cwd', () => process.env.LINESMAN_CWD || process.cwd())
+
   ipcMain.handle('laps:load', async (): Promise<LapsFile> => {
     const p = requirePath(ctx)
     return loadFile(p)

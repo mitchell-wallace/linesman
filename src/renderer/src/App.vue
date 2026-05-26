@@ -14,6 +14,13 @@ const store = useLapsStore()
 
 const showAdd = ref(false)
 const addPosition = ref<AddPosition>('tail')
+const cwd = ref('')
+
+const folderName = computed(() => {
+  if (!cwd.value) return ''
+  const parts = cwd.value.replace(/\/+$/, '').split('/')
+  return parts[parts.length - 1] || '/'
+})
 
 const filePathDisplay = computed(() => store.filePath ?? 'No file open')
 
@@ -65,6 +72,7 @@ function onWindowKey(e: KeyboardEvent): void {
 }
 
 onMounted(async () => {
+  cwd.value = await window.laps.getCwd()
   await store.initialLoad()
   unsubExternal = window.laps.onExternalChange((evt) => {
     store.handleExternalChange(evt.file)
@@ -102,8 +110,14 @@ onBeforeUnmount(() => {
               <path d="M5 12h14M5 6h14M5 18h9" />
             </svg>
           </div>
-          <span class="text-sm font-semibold tracking-tight">laps-viewer</span>
+          <span class="text-sm font-semibold tracking-tight">linesman</span>
         </div>
+        <span class="text-slate-700">·</span>
+        <span
+          v-if="folderName"
+          class="text-sm font-semibold text-slate-300"
+          :title="cwd"
+        >{{ folderName }}</span>
         <span class="text-slate-700">·</span>
         <div
           class="min-w-0 truncate font-mono text-xs text-slate-500"
@@ -144,7 +158,7 @@ onBeforeUnmount(() => {
       <div class="max-w-md space-y-3">
         <div class="text-lg font-semibold text-slate-200">No laps.json found</div>
         <p class="text-sm text-slate-400">
-          Launch laps-viewer from a directory that contains a
+          Launch linesman from a directory that contains a
           <code class="rounded bg-slate-800 px-1 py-px font-mono text-xs">.laps/laps.json</code>
           file, or set
           <code class="rounded bg-slate-800 px-1 py-px font-mono text-xs">LAPS_FILE</code>
