@@ -83,11 +83,9 @@ export async function launchApp(lapsFile: string): Promise<LaunchedApp> {
   })
   if (process.env.LAPS_E2E_DEBUG) {
     win.on('console', (msg) => {
-      // eslint-disable-next-line no-console
       console.log('[renderer]', msg.type(), msg.text())
     })
     win.on('pageerror', (err) => {
-      // eslint-disable-next-line no-console
       console.log('[renderer:error]', err.message)
     })
   }

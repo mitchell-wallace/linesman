@@ -1,7 +1,17 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useLapsStore, type FilterMode } from '../stores/laps'
 
 const store = useLapsStore()
+
+const searchInput = ref(store.searchQuery)
+let debounceTimer: ReturnType<typeof setTimeout>
+watch(searchInput, (val) => {
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    store.searchQuery = val
+  }, 150)
+})
 
 const chips: { id: FilterMode; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -26,7 +36,7 @@ const chips: { id: FilterMode; label: string }[] = [
         <path d="m20 20-3.5-3.5" />
       </svg>
       <input
-        v-model="store.searchQuery"
+        v-model="searchInput"
         type="text"
         placeholder="Search laps..."
         data-testid="search"

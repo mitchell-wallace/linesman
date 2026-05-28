@@ -14,7 +14,6 @@ const dev = args.includes('--dev')
 
 function discoverLapsFile(startDir) {
   let dir = path.resolve(startDir)
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const candidate = path.join(dir, '.laps', 'laps.json')
     if (existsSync(candidate)) {
